@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tienda de Ropa Online</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+    header { background: #111; color: #fff; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+    nav button { margin-left: 10px; }
+    .container { padding: 20px; }
+    .hidden { display: none; }
+    .card { background: #fff; padding: 15px; margin: 10px 0; border-radius: 8px; }
+    .products { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+    .product { border: 1px solid #ddd; padding: 10px; border-radius: 8px; text-align: center; background: #fff; }
+    .product img { width: 100%; height: 200px; object-fit: cover; border-radius: 6px; }
+    input, button { padding: 8px; margin: 5px 0; width: 100%; }
+    button { cursor: pointer; }
+
+    .auth-bg {
+      min-height: 80vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #000000cc, #000000cc),
+        url('https://images.unsplash.com/photo-1521334884684-d80222895322');
+      background-size: cover;
+      background-position: center;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 400px;
+      background: #ffffffee;
+      padding: 25px;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+<header id="mainHeader" class="hidden">
+  <h2>Tienda de Ropa</h2>
+  <nav>
+    <span id="userInfo"></span>
+    <button onclick="toggleCart()">🛒 Carrito (<span id="cartCount">0</span>)</button>
+    <button onclick="logout()">Salir</button>
+  </nav>
+</header>
+
+<div class="container auth-bg">
+  <div id="login" class="card auth-card hidden">
+    <h3>Iniciar Sesión</h3>
+    <input id="loginUser" placeholder="Usuario">
+    <input id="loginPass" type="password" placeholder="Contraseña">
+    <button onclick="loginUserFn()">Entrar</button>
+    <p>¿No tienes cuenta? <a href="#" onclick="showRegister()">Registrarse</a></p>
+  </div>
+
+  <div id="register" class="card auth-card hidden">
+    <h3>Registro de Cliente</h3>
+    <input id="regUser" placeholder="Usuario">
+    <input id="regPass" type="password" placeholder="Contraseña">
+    <button onclick="registerUserFn()">Crear cuenta</button>
+  </div>
+
+  <div id="store" class="products hidden"></div>
+
+  <div id="cart" class="card hidden">
+    <h3>Carrito de Compras</h3>
+    <div id="cartItems"></div>
+    <h4>Total: $<span id="cartTotal">0</span></h4>
+    <input id="email" type="email" placeholder="Correo para comprobante">
+    <button onclick="checkout()">Finalizar compra</button>
+  </div>
+
+  <div id="admin" class="card hidden">
+    <h3>Panel de Administración</h3>
+    <input id="prodName" placeholder="Nombre del producto">
+    <input id="prodPrice" type="number" placeholder="Precio">
+    <input id="prodImg" placeholder="URL de la imagen">
+    <button onclick="addProduct()">Agregar Producto</button>
+  </div>
+</div>
+
+<script>
+  const loginDiv = document.getElementById('login');
+  const registerDiv = document.getElementById('register');
+  const adminDiv = document.getElementById('admin');
+  const cartDiv = document.getElementById('cart');
+  const userInfo = document.getElementById('userInfo');
+  const store = document.getElementById('store');
+  const cartItems = document.getElementById('cartItems');
+  const cartTotal = document.getElementById('cartTotal');
+  const cartCount = document.getElementById('cartCount');
+
+  let users = JSON.parse(localStorage.getItem('users')) || [
+    { user: 'admin', pass: 'admin', role: 'admin' }
+  ];
+
+  let products = JSON.parse(localStorage.getItem('products')) || [
+    { name: 'Playera Blanca', price: 250, img: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab' },
+    { name: 'Sudadera Negra', price: 600, img: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf' },
+    { name: 'Pantalón Mezclilla', price: 500, img: 'https://images.unsplash.com/photo-1542272604-787c3835535d' }
+  ];
+
+  let cart = JSON.parse(localStorage.getItem('cart')) || [];
+  let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+
+  function save() {
+    localStorage.setItem('users', JSON.stringify(users));
+    localStorage.setItem('products', JSON.stringify(products));
+    localStorage.setItem('cart', JSON.stringify(cart));
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  }
+
+  function renderProducts() {
+    store.innerHTML = '';
+    products.forEach((p, i) => {
+      store.innerHTML += `
+        <div class="product">
+          <img src="${p.img}">
+          <h4>${p.name}</h4>
+          <p>$${p.price}</p>
+          <button onclick="addToCart(${i})">Agregar al carrito</button>
+        </div>`;
+    });
+  }
+
+  function addToCart(i) {
+    cart.push(products[i]);
+    save();
+    renderCart();
+  }
+
+  function renderCart() {
+    cartItems.innerHTML = '';
+    let total = 0;
+    cart.forEach(p => {
+      total += p.price;
+      cartItems.innerHTML += `<p>${p.name} - $${p.price}</p>`;
+    });
+    cartTotal.textContent = total;
+    cartCount.textContent = cart.length;
+  }
+
+  function toggleCart() {
+    cartDiv.classList.toggle('hidden');
+    renderCart();
+  }
+
+  function checkout() {
+    const email = document.getElementById('email').value;
+    if (!email) return alert('Ingresa un correo');
+    const total = cart.reduce((s, p) => s + p.price, 0);
+    window.location.href = `mailto:${email}?subject=Comprobante de compra&body=Gracias por tu compra. Total: $${total}`;
+    cart = [];
+    save();
+    renderCart();
+    alert('Compra realizada');
+  }
+
+  function showLogin() {
+    loginDiv.classList.remove('hidden');
+    registerDiv.classList.add('hidden');
+  }
+
+  function showRegister() {
+    registerDiv.classList.remove('hidden');
+    loginDiv.classList.add('hidden');
+  }
+
+  function loginUserFn() {
+    const u = loginUser.value;
+    const p = loginPass.value;
+    const found = users.find(x => x.user === u && x.pass === p);
+    if (!found) return alert('Credenciales incorrectas');
+    currentUser = found;
+    save();
+    updateUI();
+  }
+
+  function registerUserFn() {
+    users.push({ user: regUser.value, pass: regPass.value, role: 'client' });
+    save();
+    alert('Usuario registrado');
+    showLogin();
+  }
+
+  function logout() {
+    currentUser = null;
+    save();
+    updateUI();
+  }
+
+  function addProduct() {
+    products.push({ name: prodName.value, price: Number(prodPrice.value), img: prodImg.value });
+    save();
+    renderProducts();
+  }
+
+  function updateUI() {
+    renderCart();
+    loginDiv.classList.add('hidden');
+    registerDiv.classList.add('hidden');
+    adminDiv.classList.add('hidden');
+    store.classList.add('hidden');
+    cartDiv.classList.add('hidden');
+    userInfo.textContent = '';
+    document.getElementById('mainHeader').classList.add('hidden');
+
+    if (!currentUser) {
+      document.querySelector('.container').classList.add('auth-bg');
+      showLogin();
+      return;
+    }
+
+    document.querySelector('.container').classList.remove('auth-bg');
+    document.getElementById('mainHeader').classList.remove('hidden');
+    userInfo.textContent = `Hola, ${currentUser.user}`;
+    store.classList.remove('hidden');
+    renderProducts();
+
+    if (currentUser.role === 'admin') adminDiv.classList.remove('hidden');
+  }
+
+  updateUI();
+</script>
+</body>
+</html>
